@@ -1,2 +1,4 @@
 *.mp4
 *_img/
+*ocr.srt
+*results.json
