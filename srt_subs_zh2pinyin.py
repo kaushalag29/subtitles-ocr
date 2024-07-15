@@ -18,7 +18,9 @@
 
 
 # requirements:
-# python -m pip install -U srt opencc pypinyin
+# python -m pip install -U srt pypinyin
+# pip3 uninstall opencc
+# pip3 install opencc-python-reimplemented==0.1.4
 
 import argparse
 import sys
