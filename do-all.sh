@@ -15,7 +15,22 @@ case ${answer:0:1} in
     y|Y )
         ################### TODO: adjust crop area for input video #########################
         # https://video.stackexchange.com/questions/4563/how-can-i-crop-a-video-with-ffmpeg
-        ffmpeg -y -i "$1" -filter:v "crop=1738:400:100:965" -c:a copy "$1_video-cropped.mp4"
+        # ffmpeg -y -i "$1" -filter:v "crop=1738:400:100:965" -c:a copy "$1_video-cropped.mp4"
+        video_file="$1"
+        width=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of default=noprint_wrappers=1:nokey=1 "$video_file")
+        height=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of default=noprint_wrappers=1:nokey=1 "$video_file")
+        # Define the cropped height and edges trim width
+        cropped_height=500
+        edges_trim_width=50
+        # Calculate the new width and height for cropping
+        new_width=$((width - 2 * edges_trim_width))
+        new_height=$((height - cropped_height))
+        # Rechange cropped height by x (50) amount to get rid of bottom section by 50px
+        cropped_height=450
+        # Calculate the x and y start positions for cropping
+        x_start=$edges_trim_width
+        y_start=$new_height
+        ffmpeg -y -i "$1" -filter:v "crop=${new_width}:${cropped_height}:${x_start}:${y_start}" -c:a copy "$1_video-cropped.mp4"
     ;;
     * )
         echo Skipping...
