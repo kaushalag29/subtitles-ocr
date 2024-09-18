@@ -9,14 +9,31 @@ from pathlib import Path
 import srt
 import google.generativeai as genai
 
-def split_dict_into_batches(big_dict, batch_size=100):
-    # Convert dictionary keys to a list
+def split_dict_into_batches(big_dict, min_batch_size=90, max_batch_size=120):
+    batch = {}
+    count = 0
     keys = list(big_dict.keys())
     
-    # Split the dictionary into batches
-    for i in range(0, len(keys), batch_size):
-        # Yield a new dictionary containing the batch of keys
-        yield {k: big_dict[k] for k in keys[i:i + batch_size]}
+    for k in keys:
+        batch[k] = big_dict[k]
+        count += 1
+        
+        # If we encounter a value that is "\n" and the batch size is within the limits, yield the batch
+        if big_dict[k] == "\n" and min_batch_size <= count <= max_batch_size:
+            yield batch
+            batch = {}  # Reset the batch
+            count = 0   # Reset the count
+        
+        # If batch size exceeds the maximum, yield it even if we didn't hit "\n"
+        elif count >= max_batch_size:
+            yield batch
+            batch = {}  # Reset the batch
+            count = 0   # Reset the count
+    
+    # Yield any remaining items in the last batch
+    if batch:
+        yield batch
+
 
 def get_corrected_subtitles(ocr_subs_dict):
     final_ocr_subs_dict = {}
@@ -160,10 +177,12 @@ def generate_srt(json_input_file=None):
     with open(json_input_file, "r") as f:
         ocr_dict: dict = json.load(f)
     ocr_dict = get_corrected_subtitles(ocr_dict)
+    with open("correct_subs.json", "w+") as f:
+        json.dump(ocr_dict, f, default=str, indent=4)
 
     subtitles = []
-    start_time = datetime.timedelta()
-
+    start_time: datetime.timedelta = None
+    end_time: datetime.timedelta = None
     # sorted_int_keys = sorted([int(k) for k in ocr_dict.keys()])
 
     current_sub: srt.Subtitle = None
@@ -173,22 +192,33 @@ def generate_srt(json_input_file=None):
         body: str = ocr_dict.get(str(frame_number)).strip()
 
         if body:
-            start_time: datetime.timedelta = datetime.timedelta(seconds=int(frame_number))
-            end_time = start_time + datetime.timedelta(milliseconds=1000)
-
-            sub = srt.Subtitle(None, start_time, end_time, body)
-
             if not current_sub:
+                start_time: datetime.timedelta = datetime.timedelta(seconds=int(frame_number))
+                end_time = start_time + datetime.timedelta(milliseconds=1000)
+                sub = srt.Subtitle(None, start_time, end_time, body)
                 current_sub = sub
                 continue
 
-            # if it's duplicate content then add 1 second to current sub
+             # if it's duplicate content then add 1 second to current sub
             if current_sub.content == body:
                 current_sub.end = current_sub.end + datetime.timedelta(milliseconds=1000)
             else:
                 subtitles.append(current_sub)
                 print(current_sub.to_srt())
+                start_time: datetime.timedelta = datetime.timedelta(seconds=int(frame_number))
+                end_time = start_time + datetime.timedelta(milliseconds=1000)
+                sub = srt.Subtitle(None, start_time, end_time, body)
                 current_sub = sub
+        else:
+            if current_sub:
+                subtitles.append(current_sub)
+                print(current_sub.to_srt())
+                current_sub = None
+                
+    if current_sub:
+        subtitles.append(current_sub)
+        print(current_sub.to_srt())
+        current_sub = None
 
     return subtitles
 
