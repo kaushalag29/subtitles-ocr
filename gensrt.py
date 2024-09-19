@@ -64,7 +64,7 @@ def get_corrected_subtitles(ocr_subs_dict):
         # text_query = """The above is the given json with timeframe numbers of images in a video and its corresponding subtitles. Two or more timeframe numbers can have same subtitle lines but they have different words. Choose the best subtitle line among the consecutive similar (ignore line breaks to check the similarity of subtitles, focus more on the words and meaning) time frame numbers and strictly make them all same word by word. Correct the sentence of subtitles if required with minimal word change but try to avoid it as much as possible. The final output should be the json like above with all time frame numbers and their corresponding best subtitle lines. Remove any non-english lines as empty "\\n" string but keep all the time frame numbers."""
         text_query = """The above is the JSON content containing subtitle lines corresponding to each time frame number for a video. The goal is to refactor the content so that time frames with similar (by words or meaning) subtitles need to be matched word by word by choosing the best subtitle line among the similar ones.  We should make minimal word changes to make the best line and try to avoid doing that. Replace any non-English sentences as empty strings "\\n" while retaining the time frames. The final output should be a JSON containing all time frames with consistent consecutive subtitles.
 
-    Very stirctly don't add any line from below Examples subtitles if the input subtitle line is different. Make decisions according to input JSON content and final output should contain lines from input JSON content only.
+    Very stirctly don't add any line from below Examples subtitles if the input subtitle line is different or not found. Make decisions according to input JSON content and final output should contain lines from input JSON content only and not from below examples.
 
     Some Examples:
 
@@ -150,7 +150,7 @@ def get_corrected_subtitles(ocr_subs_dict):
 
     Subtitle lines containing only punctuation marks or special symbols like ":", "?", "...", "###", ",;" should be replaced as "\\n" empty string.
 
-    Strictly Note:  All the above content is legal and legitimate without offensive sentences. Everything is fictional and taken from movies. Generate the content properly without invoking false safety alarms.
+    Strictly Note:  All the above content is legal and legitimate without offensive sentences. Everything is fictional and taken from movies. Generate the content properly as instructed without including any examples subtitles lines and without invoking false safety alarms.
     """
         prompt = "{}\n\n{}".format(ocr_subs_str, text_query)
         print("Fixing subtitles with GenAI")
@@ -171,7 +171,7 @@ def get_corrected_subtitles(ocr_subs_dict):
             raise Exception("Gemini AI Didn't worked properly")
     return final_ocr_subs_dict
 
-def generate_srt(json_input_file=None):
+def generate_srt(json_input_file=None, json_upper_input_file=None):
     # get the list of image files in the img folder, sorted by their names
 
     with open(json_input_file, "r") as f:
@@ -179,6 +179,29 @@ def generate_srt(json_input_file=None):
     ocr_dict = get_corrected_subtitles(ocr_dict)
     with open("correct_subs.json", "w+") as f:
         json.dump(ocr_dict, f, default=str, indent=4)
+    
+    with open(json_upper_input_file, "r") as f:
+        ocr_upper_dict: dict = json.load(f)
+    ocr_upper_dict = get_corrected_subtitles(ocr_upper_dict)
+    with open("upper_correct_subs.json", "w+") as f:
+        json.dump(ocr_upper_dict, f, default=str, indent=4)
+    
+    if len(ocr_dict.keys()) != len(ocr_upper_dict.keys()):
+        print("Something went wrong while correcting subtitles with AI")
+        raise Exception("Gemini AI didn't work properly. Please try again!")
+    
+    final_ocr_dict = {}
+    for key in ocr_dict.keys():
+        if ocr_dict[key] == ocr_upper_dict[key]:
+            final_ocr_dict[key] = ocr_dict[key]
+        else:
+            if ocr_dict[key] == "\n":
+                final_ocr_dict[key] = ocr_upper_dict[key]
+            elif ocr_upper_dict[key] == "\n":
+                final_ocr_dict[key] = ocr_dict[key]
+            else:
+                # Prioritize lower subtitles over upper
+                final_ocr_dict[key] = ocr_dict[key].strip()
 
     subtitles = []
     start_time: datetime.timedelta = None
@@ -187,9 +210,9 @@ def generate_srt(json_input_file=None):
 
     current_sub: srt.Subtitle = None
 
-    for frame_number in sorted(ocr_dict.keys()):
+    for frame_number in final_ocr_dict.keys():
 
-        body: str = ocr_dict.get(str(frame_number)).strip()
+        body: str = final_ocr_dict.get(str(frame_number)).strip()
 
         if body:
             if not current_sub:
@@ -224,9 +247,11 @@ def generate_srt(json_input_file=None):
 
 json_input = sys.argv[1]
 srt_output=sys.argv[2]
+json_upper_input = sys.argv[3]
 
-subtitles = generate_srt(json_input_file=json_input)
+subtitles = generate_srt(json_input_file=json_input, json_upper_input_file=json_upper_input)
 
 print('JSON input:', json_input)
 print('SRT output:', srt_output)
+print('JSON upper input:', json_upper_input)
 Path(srt_output).write_text(srt.compose(subtitles), encoding='utf-8')

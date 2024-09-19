@@ -20,17 +20,18 @@ case ${answer:0:1} in
         width=$(ffprobe -v error -select_streams v:0 -show_entries stream=width -of default=noprint_wrappers=1:nokey=1 "$video_file")
         height=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of default=noprint_wrappers=1:nokey=1 "$video_file")
         # Define the cropped height and edges trim width
-        cropped_height=500
+        cropped_height=350
         edges_trim_width=50
         # Calculate the new width and height for cropping
         new_width=$((width - 2 * edges_trim_width))
-        new_height=$((height - cropped_height))
+        y_start=$((height - cropped_height))
         # Rechange cropped height by x (50) amount to get rid of bottom section by 50px
-        cropped_height=450
+        cropped_height=300
         # Calculate the x and y start positions for cropping
         x_start=$edges_trim_width
-        y_start=$new_height
         ffmpeg -y -i "$1" -filter:v "crop=${new_width}:${cropped_height}:${x_start}:${y_start}" -c:a copy "$1_video-cropped.mp4"
+        # Crop upper portion of video
+        ffmpeg -y -i "$1" -filter:v "crop=${new_width}:250:${x_start}:0" -c:a copy "$1_video-upper-cropped.mp4"
     ;;
     * )
         echo Skipping...
@@ -45,7 +46,10 @@ case ${answer:0:1} in
     y|Y )
         rm -rfv "$1_img"
         mkdir -p "$1_img"
+        rm -rfv "$1_upper_img"
+        mkdir -p "$1_upper_img"
         ffmpeg -y -i "$1_video-cropped.mp4" -start_number 0 -vf "fps=1" -q:v 2 "$1_img/snap_%04d.png"
+        ffmpeg -y -i "$1_video-upper-cropped.mp4" -start_number 0 -vf "fps=1" -q:v 2 "$1_upper_img/snap_%04d.png"
     ;;    * )
         echo Skipping...
     ;;
@@ -56,11 +60,13 @@ case ${answer:0:1} in
     y|Y )
         if [ -f "$1_results.json" ]; then
             rm -rf -v "$1_results.json"
+            rm -rf -v "$1_upper_results.json"
         else
             echo "File does not exist"
         fi
         # rm -rf -v "$1_results.json"
         python3 do-ocr.py "$1_img" "$1_results.json"
+        python3 do-ocr.py "$1_upper_img" "$1_upper_results.json"
     ;;
     * )
         echo Skipping...
@@ -77,7 +83,7 @@ case ${answer:0:1} in
             echo "File does not exist"
         fi
         # rm "$1.ocr.srt"
-        python3 gensrt.py "$1_results.json" "$1.ocr.srt"
+        python3 gensrt.py "$1_results.json" "$1.ocr.srt" "$1_upper_results.json"
     ;;
     * )
         echo Skipping...
