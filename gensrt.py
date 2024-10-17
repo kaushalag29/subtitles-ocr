@@ -56,7 +56,7 @@ def get_corrected_subtitles(ocr_subs_dict):
             "threshold": "BLOCK_NONE",
         },
     ]
-    model = genai.GenerativeModel('gemini-1.5-flash', safety_settings=safe)
+    model = genai.GenerativeModel('gemini-1.5-flash-001', safety_settings=safe)
     batches = list(split_dict_into_batches(ocr_subs_dict))
     for _, batch in enumerate(batches):
         # Used Gemini AI to take subtitle dict as input prompt and return back the corrected subtitles based on text prompt
@@ -64,7 +64,7 @@ def get_corrected_subtitles(ocr_subs_dict):
         # text_query = """The above is the given json with timeframe numbers of images in a video and its corresponding subtitles. Two or more timeframe numbers can have same subtitle lines but they have different words. Choose the best subtitle line among the consecutive similar (ignore line breaks to check the similarity of subtitles, focus more on the words and meaning) time frame numbers and strictly make them all same word by word. Correct the sentence of subtitles if required with minimal word change but try to avoid it as much as possible. The final output should be the json like above with all time frame numbers and their corresponding best subtitle lines. Remove any non-english lines as empty "\\n" string but keep all the time frame numbers."""
         text_query = """The above is the JSON content containing subtitle lines corresponding to each time frame number for a video. The goal is to refactor the content so that time frames with similar (by words or meaning) subtitles need to be matched word by word by choosing the best subtitle line among the similar ones.  We should make minimal word changes to make the best line and try to avoid doing that. Replace any non-English sentences as empty strings "\\n" while retaining the time frames. The final output should be a JSON containing all time frames with consistent consecutive subtitles.
 
-    Very stirctly don't add any line from below Examples subtitles if the input subtitle line is different or not found. Make decisions according to input JSON content and final output should contain lines from input JSON content only and not from below examples. The number of keys in the output should be same as above provided input json content.
+    Very stirctly don't include any line from below given Examples subtitles if the input subtitle line is different or not found. Consider only input JSON content and final output should contain lines from input JSON content only and not from below examples. The number of keys in the output should be strictly exactly same as above provided input json content. Don't translate the language.
 
     Some Examples:
 
@@ -197,7 +197,8 @@ def generate_srt(json_input_file=None, json_upper_input_file=None):
             final_ocr_dict[key] = ocr_dict[key]
         else:
             if ocr_dict[key] == "\n":
-                final_ocr_dict[key] = ocr_upper_dict[key]
+                final_ocr_dict[key] = "\n"
+                # final_ocr_dict[key] = ocr_upper_dict[key]
             elif ocr_upper_dict[key] == "\n":
                 final_ocr_dict[key] = ocr_dict[key]
             else:
