@@ -26,7 +26,7 @@ case ${answer:0:1} in
         new_width=$((width - 2 * edges_trim_width))
         y_start=$((height - cropped_height))
         # Rechange cropped height by x (50) amount to get rid of bottom section by 50px
-        cropped_height=350
+        cropped_height=400
         # Calculate the x and y start positions for cropping
         x_start=$edges_trim_width
         ffmpeg -y -i "$1" -filter:v "crop=${new_width}:${cropped_height}:${x_start}:${y_start}" -c:a copy "$1_video-cropped.mp4"
