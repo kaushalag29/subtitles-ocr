@@ -56,7 +56,7 @@ def get_corrected_subtitles(ocr_subs_dict):
             "threshold": "BLOCK_NONE",
         },
     ]
-    model = genai.GenerativeModel('gemini-1.5-flash-001', safety_settings=safe)
+    model = genai.GenerativeModel('gemini-2.0-flash-exp', safety_settings=safe)
     batches = list(split_dict_into_batches(ocr_subs_dict))
     for _, batch in enumerate(batches):
         # Used Gemini AI to take subtitle dict as input prompt and return back the corrected subtitles based on text prompt
@@ -176,6 +176,7 @@ def generate_srt(json_input_file=None, json_upper_input_file=None):
 
     with open(json_input_file, "r") as f:
         ocr_dict: dict = json.load(f)
+    ocr_dict = get_corrected_subtitles(ocr_dict)
     ocr_dict = get_corrected_subtitles(ocr_dict)
     with open("correct_subs.json", "w+") as f:
         json.dump(ocr_dict, f, default=str, indent=4)
