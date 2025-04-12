@@ -56,7 +56,7 @@ def get_corrected_subtitles(ocr_subs_dict):
             "threshold": "BLOCK_NONE",
         },
     ]
-    model = genai.GenerativeModel('gemini-2.0-flash-exp', safety_settings=safe)
+    model = genai.GenerativeModel('gemini-2.0-flash-001', safety_settings=safe)
     batches = list(split_dict_into_batches(ocr_subs_dict))
     for _, batch in enumerate(batches):
         # Used Gemini AI to take subtitle dict as input prompt and return back the corrected subtitles based on text prompt
