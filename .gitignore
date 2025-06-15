@@ -1,5 +1,6 @@
 *.mp4
 *_img/
 *ocr.srt
+*ocr.original.srt
 *results.json
 *correct_subs.json
