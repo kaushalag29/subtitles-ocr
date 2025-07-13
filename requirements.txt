@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+python-multipart
+pydantic
+srt
+deepl
+pypinyin
+opencc-python-reimplemented
+google-generativeai 
