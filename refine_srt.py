@@ -223,7 +223,7 @@ def try_condense_text(subtitle, excess_time):
                 "threshold": "BLOCK_NONE",
             },
         ]
-        model = genai.GenerativeModel('gemini-2.0-flash-001', safety_settings=safe)
+        model = genai.GenerativeModel('gemini-2.5-flash', safety_settings=safe)
         
         condensation_prompt = f"""
 You are an expert subtitle editor. Your task is to condense the following subtitle text to make it speakable in less time while preserving the core meaning and natural flow.
@@ -284,7 +284,7 @@ def get_refined_srt_content(srt_content_str):
             "threshold": "BLOCK_NONE",
         },
     ]
-    model = genai.GenerativeModel('gemini-2.0-flash-001', safety_settings=safe) # Using 2.0 Flash as it's good with long contexts
+    model = genai.GenerativeModel('gemini-2.5-flash', safety_settings=safe) # Using 2.0 Flash as it's good with long contexts
 
     prompt = SRT_REFINEMENT_PROMPT.replace("{srt_content_placeholder}", srt_content_str)
     
