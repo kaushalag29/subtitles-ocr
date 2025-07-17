@@ -181,30 +181,31 @@ def generate_srt(json_input_file=None, json_upper_input_file=None):
     with open("correct_subs.json", "w+") as f:
         json.dump(ocr_dict, f, default=str, indent=4)
     
-    with open(json_upper_input_file, "r") as f:
-        ocr_upper_dict: dict = json.load(f)
-    ocr_upper_dict = get_corrected_subtitles(ocr_upper_dict)
-    with open("upper_correct_subs.json", "w+") as f:
-        json.dump(ocr_upper_dict, f, default=str, indent=4)
+    # with open(json_upper_input_file, "r") as f:
+    #     ocr_upper_dict: dict = json.load(f)
+    # ocr_upper_dict = get_corrected_subtitles(ocr_upper_dict)
+    # with open("upper_correct_subs.json", "w+") as f:
+    #     json.dump(ocr_upper_dict, f, default=str, indent=4)
     
-    if len(ocr_dict.keys()) != len(ocr_upper_dict.keys()):
-        print("Something went wrong while correcting subtitles with AI")
-        print("Length mismatch {} {}".format(len(ocr_dict.keys()), len(ocr_upper_dict.keys())))
-        raise Exception("Gemini AI didn't work properly. Please try again!")
+    # if len(ocr_dict.keys()) != len(ocr_upper_dict.keys()):
+    #     print("Something went wrong while correcting subtitles with AI")
+    #     print("Length mismatch {} {}".format(len(ocr_dict.keys()), len(ocr_upper_dict.keys())))
+    #     raise Exception("Gemini AI didn't work properly. Please try again!")
     
     final_ocr_dict = {}
     for key in ocr_dict.keys():
-        if ocr_dict[key] == ocr_upper_dict[key]:
-            final_ocr_dict[key] = ocr_dict[key]
-        else:
-            if ocr_dict[key] == "\n":
-                final_ocr_dict[key] = "\n"
-                # final_ocr_dict[key] = ocr_upper_dict[key]
-            elif ocr_upper_dict[key] == "\n":
-                final_ocr_dict[key] = ocr_dict[key]
-            else:
-                # Prioritize lower subtitles over upper
-                final_ocr_dict[key] = ocr_dict[key].strip()
+        final_ocr_dict[key] = ocr_dict[key]
+        # if ocr_dict[key] == ocr_upper_dict[key]:
+        #     final_ocr_dict[key] = ocr_dict[key]
+        # else:
+        #     if ocr_dict[key] == "\n":
+        #         final_ocr_dict[key] = "\n"
+        #         # final_ocr_dict[key] = ocr_upper_dict[key]
+        #     elif ocr_upper_dict[key] == "\n":
+        #         final_ocr_dict[key] = ocr_dict[key]
+        #     else:
+        #         # Prioritize lower subtitles over upper
+        #         final_ocr_dict[key] = ocr_dict[key].strip()
 
     subtitles = []
     start_time: datetime.timedelta = None
