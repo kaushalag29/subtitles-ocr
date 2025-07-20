@@ -7,77 +7,53 @@ import google.generativeai as genai
 import re
 from datetime import timedelta
 
-SRT_REFINEMENT_PROMPT = """You are an expert SRT subtitle editor. Your task is to refine the given SRT content according to the rules below.
-The input is standard SRT format. You MUST return the output in the exact same SRT format, including correct sequential numbering, timecodes (HH:MM:SS,ms --> HH:MM:SS,ms), and text.
+SRT_REFINEMENT_PROMPT = """You are a master SRT subtitle editor with a deep understanding of dialogue pacing for voice synthesis. Your goal is to refine the given SRT content to make it optimal for TTS and voice cloning, while strictly preserving the original timings.
+The input is standard SRT format. You MUST return the output in the exact same SRT format.
 
 Input SRT:
 ```srt
 {srt_content_placeholder}
 ```
 
-Rules for Refinement:
-1.  **Minimal Intervention:** Do not change anything (text, timing, or structure) unless specifically required by the rules below. Preserve existing formatting and line breaks within subtitle text where appropriate unless a rule dictates a change.
-2.  **Combine Exact Repeated Consecutive Subtitles:**
-    *   If two or more consecutive subtitles have *exactly* the same text (case-sensitive, including line breaks):
-        *   Merge them into a single subtitle.
-        *   The new single subtitle must have the original text.
-        *   Its start time must be the start time of the *first* subtitle in the sequence.
-        *   Its end time must be the end time of the *last* subtitle in the sequence.
-        *   All other subtitles in the merged sequence should be removed.
-        *   Example:
-            Input:
-            10
-            00:01:00,000 --> 00:01:02,000
-            Hello world
+---
+**Core Mandate: DO NOT CHANGE TIMESTAMPS**
 
-            11
-            00:01:02,500 --> 00:01:04,000
-            Hello world
-            Output (if 10 and 11 are combined):
-            10
-            00:01:00,000 --> 00:01:04,000
-            Hello world
-3.  **Club Consecutive Subtitles (Continuations by Same Speaker):**
-    *   If two or more *different* consecutive subtitles clearly form a single continuous sentence or thought likely spoken by the same person:
-        *   Combine their text into a single subtitle block. Retain natural line breaks or create new ones if it improves readability of the combined text.
-        *   The new single subtitle's start time must be the start time of the *first* subtitle in the sequence.
-        *   Its end time must be the end time of the *last* subtitle in the sequence.
-        *   All other subtitles in the merged sequence should be removed.
-        *   Only merge if the continuation is obvious and improves natural speech flow. Avoid forcing merges.
-        *   Example:
-            Input:
-            20
-            00:02:00,000 --> 00:02:02,000
-            I think we should...
+*   **The start and end times for every subtitle MUST remain IDENTICAL to the input.** There are no exceptions. This is the most important rule.
+*   All edits must be to the subtitle TEXT ONLY.
 
-            21
-            00:02:02,500 --> 00:02:04,000
-            go to the park.
-            Output (if 20 and 21 are combined):
-            20
-            00:02:00,000 --> 00:02:04,000
-            I think we should...
-            go to the park.
-4.  **Speech Rate, Timing Adjustment, and Voice Cloning Considerations:**
-    *   **Speakability Analysis:** For each subtitle, assess if the text can be comfortably spoken within its given `start_time --> end_time` duration.
-    *   **If Text Too Long for Duration:**
-        *   Priority 1: Subtly condense or rephrase the text to fit, minimizing meaning change. DO NOT remove essential information.
-        *   Priority 2 (if condensation is not ideal or changes meaning too much): Attempt to extend the subtitle's duration. You can adjust *both* the start time earlier by up to 1 second AND the end time later by up to 1 second.
-            *   **Constraint:** This time adjustment is ONLY permissible if the new start time does NOT overlap with (is greater than or equal to) the end time of the *immediately preceding* subtitle (if one exists), AND the new end time does NOT overlap with (is less than or equal to) the start time of the *immediately following* subtitle (if one exists). If overlaps would occur, you must prioritize condensing the text or making minimal time adjustments that avoid overlap.
-    *   **Sufficient Duration for Voice Cloning:** Aim for segments that are natural for speech synthesis. Avoid extremely short durations (e.g., less than 0.5 seconds) for substantive text if a slight, non-overlapping extension (as per Rule 4, Priority 2) is possible and makes it more speakable.
-    *   **Do Not Arbitrarily Shorten Durations:** If text comfortably fits its duration, or is intentionally paced for effect (e.g., a single word held for a few seconds), do not shorten it unless required to prevent overlap after other modifications.
-5.  **No Overlapping Times (CRUCIAL Output Constraint):**
-    *   The final output SRT *must not* have any subtitles with overlapping timecodes. The end time of one subtitle must be less than or equal to the start time of the next.
-    *   If your merging or time adjustment operations risk creating an overlap that cannot be resolved by Rule 4, you must adjust timings (potentially shortening one or both subtitles involved in the potential overlap) to ensure no overlap. Prioritize preserving content over exact original timing if an overlap conflict arises.
-6.  **Text and Timing Modification Prudence:**
-    *   Change subtitle text *only if absolutely necessary* (e.g., condensation for Rule 4).
-    *   Modify start/end times *only when necessary* and according to the specific allowances in Rule 4 and Rule 5, always respecting non-overlapping constraints.
-7.  **Maintain SRT Integrity:**
-    *   Ensure all subtitle blocks are correctly numbered sequentially starting from 1 after any merging/deletions.
-    *   Ensure timecodes are in `HH:MM:SS,ms` format.
-    *   Ensure there's a blank line between subtitle entries.
+---
+**Editing Rules:**
 
-Review the entire SRT content after applying these rules to ensure consistency, correctness, and adherence to all constraints. The output should be ONLY the refined SRT content.
+**Rule 1: Analyze Full Context First**
+
+*   Before making any edits, read the entire subtitle file to understand the conversational flow, speaker intent, and emotional context. This understanding should guide all your decisions.
+
+**Rule 2: Merge Consecutive Subtitles**
+
+*   **A) Identical Text:** If two or more consecutive subtitles have the *exact* same text, merge them. The new entry uses the start time of the first and the end time of the last subtitle in the sequence.
+*   **B) Continuous Sentences:** If two or more *different* consecutive subtitles clearly form a single continuous sentence from the same speaker, merge them. The new entry uses the start time of the first and end time of the last. Avoid merging if it feels unnatural.
+*   **Note on Merging:** Merging is an exception to the "DO NOT CHANGE TIMESTAMPS" rule, but ONLY in the sense that the merged subtitle adopts the start/end times of the subtitles it replaces. You are not creating new, arbitrary timestamps.
+
+**Rule 3: Adjust Text for Speakability (The ONLY Allowed Text Change)**
+
+*   **A) If Text is TOO LONG for its Duration:**
+    *   Subtly condense or rephrase the text to fit within the UNCHANGED duration.
+    *   You MUST preserve the core meaning and emotional tone. Do not remove essential information. This is your ONLY option. You cannot extend the duration.
+*   **B) If Text is TOO SHORT for its Duration:**
+    *   **DO NOTHING.** Do not change the text or the timing. A short phrase with a long duration is often intentional for dramatic pacing.
+
+**Rule 4: Overlaps**
+
+*   The input subtitles may contain overlaps. Since you cannot change the timestamps, you MUST NOT attempt to fix them by adjusting times. If overlaps exist in the input, they will exist in the output. The only way an overlap should be removed is if the overlapping subtitles are merged under Rule 2.
+
+**Rule 5: Final SRT Integrity**
+
+*   After all edits, re-number all subtitles sequentially starting from 1.
+*   Ensure all timecodes are in the correct `HH:MM:SS,ms` format and are identical to the input unless affected by a merge.
+*   Ensure a blank line separates each subtitle entry.
+
+---
+Your output should be ONLY the refined SRT content, with no extra explanations.
 """
 
 # Speech rate constants for speakability analysis
@@ -132,24 +108,16 @@ def intelligent_subtitle_analysis(subtitles):
         if not is_speakable and abs(time_diff) > 0.5:  # Only modify if significantly problematic
             print(f"Subtitle {subtitle.index}: Text too long by {time_diff:.1f}s, analyzing for optimization...")
             
-            # Try to extend duration first (safer approach)
-            extended_subtitle = try_extend_duration(subtitle, subtitles, i, time_diff)
-            
-            if extended_subtitle:
-                analyzed_subtitles.append(extended_subtitle)
+            # Since we cannot extend duration, we go straight to text condensation
+            condensed_subtitle = try_condense_text(subtitle, time_diff)
+            if condensed_subtitle and condensed_subtitle.content != subtitle.content:
+                analyzed_subtitles.append(condensed_subtitle)
                 modifications_made += 1
-                print(f"  → Extended duration for subtitle {subtitle.index}")
+                print(f"  → Condensed text for subtitle {subtitle.index}")
             else:
-                # If extension isn't possible, try text condensation
-                condensed_subtitle = try_condense_text(subtitle, time_diff)
-                if condensed_subtitle and condensed_subtitle.content != subtitle.content:
-                    analyzed_subtitles.append(condensed_subtitle)
-                    modifications_made += 1
-                    print(f"  → Condensed text for subtitle {subtitle.index}")
-                else:
-                    # Keep original if condensation wasn't effective
-                    analyzed_subtitles.append(subtitle)
-                    print(f"  → No safe modification possible for subtitle {subtitle.index}")
+                # Keep original if condensation wasn't effective or possible
+                analyzed_subtitles.append(subtitle)
+                print(f"  → No safe text condensation possible for subtitle {subtitle.index}")
         else:
             # Subtitle is already speakable or only slightly problematic
             analyzed_subtitles.append(subtitle)
@@ -223,7 +191,7 @@ def try_condense_text(subtitle, excess_time):
                 "threshold": "BLOCK_NONE",
             },
         ]
-        model = genai.GenerativeModel('gemini-2.5-flash', safety_settings=safe)
+        model = genai.GenerativeModel('gemini-2.5-flash-lite-preview-06-17', safety_settings=safe)
         
         condensation_prompt = f"""
 You are an expert subtitle editor. Your task is to condense the following subtitle text to make it speakable in less time while preserving the core meaning and natural flow.
@@ -234,11 +202,12 @@ Estimated speaking time needed: {calculate_speaking_duration(subtitle.content):.
 Excess time: {excess_time:.1f} seconds
 
 Rules:
-1. Preserve the core meaning and context
-2. Maintain natural grammar and readability
-3. Remove unnecessary words, not essential information
-4. Keep the condensed version natural for speech synthesis
-5. If the text cannot be meaningfully condensed without losing important information, return the original text unchanged
+1. Preserve the core meaning and context.
+2. Maintain natural grammar and readability.
+3. Remove unnecessary words, not essential information.
+4. Keep the condensed version natural for speech synthesis.
+5. If the text cannot be meaningfully condensed without losing important information, return the original text unchanged.
+6. Be conservative. Since you are editing this line in isolation, if you are unsure about the full context, it is safer to return the original text.
 
 Return ONLY the condensed text (or original if no good condensation is possible), no additional formatting or explanation.
 """
@@ -284,7 +253,7 @@ def get_refined_srt_content(srt_content_str):
             "threshold": "BLOCK_NONE",
         },
     ]
-    model = genai.GenerativeModel('gemini-2.5-flash', safety_settings=safe) # Using 2.0 Flash as it's good with long contexts
+    model = genai.GenerativeModel('gemini-2.5-flash-lite-preview-06-17', safety_settings=safe) # Using 2.0 Flash as it's good with long contexts
 
     prompt = SRT_REFINEMENT_PROMPT.replace("{srt_content_placeholder}", srt_content_str)
     
