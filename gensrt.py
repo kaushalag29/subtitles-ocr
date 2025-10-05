@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 import srt
 import google.generativeai as genai
+from gemini_rate_limiter import get_global_limiter
 
 def split_dict_into_batches(big_dict, min_batch_size=90, max_batch_size=120):
     batch = {}
@@ -57,6 +58,7 @@ def get_corrected_subtitles(ocr_subs_dict):
         },
     ]
     model = genai.GenerativeModel('gemini-2.5-flash-lite-preview-06-17', safety_settings=safe)
+    limiter = get_global_limiter()
     batches = list(split_dict_into_batches(ocr_subs_dict))
     for _, batch in enumerate(batches):
         # Used Gemini AI to take subtitle dict as input prompt and return back the corrected subtitles based on text prompt
@@ -154,7 +156,7 @@ def get_corrected_subtitles(ocr_subs_dict):
     """
         prompt = "{}\n\n{}".format(ocr_subs_str, text_query)
         print("Fixing subtitles with GenAI")
-        response = model.generate_content(prompt)
+        response = limiter.generate_content(model, prompt, 'gemini-2.5-flash-lite-preview-06-17')
         print(response.text)
         pattern = r'\{.*?\}'
         match = re.search(pattern, response.text, re.DOTALL)

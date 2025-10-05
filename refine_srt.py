@@ -6,6 +6,7 @@ import srt
 import google.generativeai as genai
 import re
 from datetime import timedelta
+from gemini_rate_limiter import get_global_limiter
 
 SRT_REFINEMENT_PROMPT = """You are a master SRT subtitle editor with a deep understanding of dialogue pacing for voice synthesis. Your goal is to refine the given SRT content to make it optimal for TTS and voice cloning, while strictly preserving the original timings.
 The input is standard SRT format. You MUST return the output in the exact same SRT format.
@@ -192,6 +193,7 @@ def try_condense_text(subtitle, excess_time):
             },
         ]
         model = genai.GenerativeModel('gemini-2.5-flash-lite-preview-06-17', safety_settings=safe)
+        limiter = get_global_limiter()
         
         condensation_prompt = f"""
 You are an expert subtitle editor. Your task is to condense the following subtitle text to make it speakable in less time while preserving the core meaning and natural flow.
@@ -212,7 +214,7 @@ Rules:
 Return ONLY the condensed text (or original if no good condensation is possible), no additional formatting or explanation.
 """
         
-        response = model.generate_content(condensation_prompt)
+        response = limiter.generate_content(model, condensation_prompt, 'gemini-2.5-flash-lite-preview-06-17')
         condensed_text = response.text.strip()
         
         # Validate the condensation
@@ -254,11 +256,12 @@ def get_refined_srt_content(srt_content_str):
         },
     ]
     model = genai.GenerativeModel('gemini-2.5-flash-lite-preview-06-17', safety_settings=safe) # Using 2.0 Flash as it's good with long contexts
+    limiter = get_global_limiter()
 
     prompt = SRT_REFINEMENT_PROMPT.replace("{srt_content_placeholder}", srt_content_str)
     
     print("Sending SRT content to GenAI for refinement...")
-    response = model.generate_content(prompt)
+    response = limiter.generate_content(model, prompt, 'gemini-2.5-flash-lite-preview-06-17')
     
     # Extract content between ```srt and ```
     match = re.search(r"```srt\s*(.*?)\s*```", response.text, re.DOTALL)
