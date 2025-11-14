@@ -156,16 +156,19 @@ async def shutdown():
     return {"status": "shutdown", "message": "Server shutting down"}
 
 if __name__ == "__main__":
+    # Port is configurable via environment variable
+    port = int(os.environ.get("PORT", 8008))
+
     print("="*50, flush=True)
-    print("SUBTITLES-OCR SERVER: Starting uvicorn server", flush=True)
+    print(f"SUBTITLES-OCR SERVER: Starting uvicorn server on port {port}", flush=True)
     print("="*50, flush=True)
-    logger.info("Starting uvicorn server on 0.0.0.0:8008")
-    
+    logger.info(f"Starting uvicorn server on 0.0.0.0:{port}")
+
     import uvicorn
     uvicorn.run(
-        app, 
-        host="0.0.0.0", 
-        port=8008,
+        app,
+        host="0.0.0.0",
+        port=port,
         log_level="info",
         access_log=True
     ) 
