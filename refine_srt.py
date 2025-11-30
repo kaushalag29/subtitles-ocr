@@ -192,7 +192,7 @@ def try_condense_text(subtitle, excess_time):
                 "threshold": "BLOCK_NONE",
             },
         ]
-        model = genai.GenerativeModel('gemini-2.5-flash-lite-preview-06-17', safety_settings=safe)
+        model = genai.GenerativeModel('gemini-2.5-flash-lite', safety_settings=safe)
         limiter = get_global_limiter()
         
         condensation_prompt = f"""
@@ -214,7 +214,7 @@ Rules:
 Return ONLY the condensed text (or original if no good condensation is possible), no additional formatting or explanation.
 """
         
-        response = limiter.generate_content(model, condensation_prompt, 'gemini-2.5-flash-lite-preview-06-17')
+        response = limiter.generate_content(model, condensation_prompt, 'gemini-2.5-flash-lite')
         condensed_text = response.text.strip()
         
         # Validate the condensation
@@ -255,13 +255,13 @@ def get_refined_srt_content(srt_content_str):
             "threshold": "BLOCK_NONE",
         },
     ]
-    model = genai.GenerativeModel('gemini-2.5-flash-lite-preview-06-17', safety_settings=safe) # Using 2.0 Flash as it's good with long contexts
+    model = genai.GenerativeModel('gemini-2.5-flash-lite', safety_settings=safe) # Using 2.0 Flash as it's good with long contexts
     limiter = get_global_limiter()
 
     prompt = SRT_REFINEMENT_PROMPT.replace("{srt_content_placeholder}", srt_content_str)
     
     print("Sending SRT content to GenAI for refinement...")
-    response = limiter.generate_content(model, prompt, 'gemini-2.5-flash-lite-preview-06-17')
+    response = limiter.generate_content(model, prompt, 'gemini-2.5-flash-lite')
     
     # Extract content between ```srt and ```
     match = re.search(r"```srt\s*(.*?)\s*```", response.text, re.DOTALL)

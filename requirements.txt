@@ -6,4 +6,8 @@ srt
 deepl
 pypinyin
 opencc-python-reimplemented
-google-generativeai 
+google-generativeai
+pytesseract
+pillow
+numpy
+requests

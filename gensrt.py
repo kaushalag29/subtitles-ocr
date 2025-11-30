@@ -57,7 +57,7 @@ def get_corrected_subtitles(ocr_subs_dict):
             "threshold": "BLOCK_NONE",
         },
     ]
-    model = genai.GenerativeModel('gemini-2.5-flash-lite-preview-06-17', safety_settings=safe)
+    model = genai.GenerativeModel('gemini-2.5-flash-lite', safety_settings=safe)
     limiter = get_global_limiter()
     batches = list(split_dict_into_batches(ocr_subs_dict))
     for _, batch in enumerate(batches):
@@ -156,7 +156,7 @@ def get_corrected_subtitles(ocr_subs_dict):
     """
         prompt = "{}\n\n{}".format(ocr_subs_str, text_query)
         print("Fixing subtitles with GenAI")
-        response = limiter.generate_content(model, prompt, 'gemini-2.5-flash-lite-preview-06-17')
+        response = limiter.generate_content(model, prompt, 'gemini-2.5-flash-lite')
         print(response.text)
         pattern = r'\{.*?\}'
         match = re.search(pattern, response.text, re.DOTALL)
