@@ -96,31 +96,12 @@ case ${answer:0:1} in
       echo "Normalizing SRT with srt-normalise..."
       srt-normalise -i "$1.ocr.srt" --inplace --debug
       if [ -f "$1.ocr.srt" ]; then
-          echo "=== Refining SRT with AI (Conservative Mode) ==="
-          echo "This will:"
-          echo "- Only combine subtitles when 95%+ certain they're continuations"
-          echo "- Keep narrative text (ALL CAPS) separate from dialogue"
-          echo "- Adjust timing for proper speech rates"
-          echo "- Detect and preserve speaker changes"
-          echo ""
-          python3 refine_srt.py "$1.ocr.srt" "$1.ocr.refined.srt"
-          if [ -f "$1.ocr.refined.srt" ]; then
-              # Compare file sizes to give user feedback
-              original_lines=$(wc -l < "$1.ocr.srt")
-              refined_lines=$(wc -l < "$1.ocr.refined.srt")
-              echo ""
-              echo "=== Refinement Complete ==="
-              echo "Original: $original_lines lines"
-              echo "Refined: $refined_lines lines"
-              
-              # Backup original and use refined version
-              cp "$1.ocr.srt" "$1.ocr.original.srt"
-              mv "$1.ocr.refined.srt" "$1.ocr.srt"
-              echo "Final SRT: $1.ocr.srt"
-              echo "Original backed up as: $1.ocr.original.srt"
-          else
-              echo "Warning: Refined SRT file ($1.ocr.refined.srt) was not created. Using original."
-          fi
+          # OPTIMIZATION: Skip OCR refinement step (refine_srt.py)
+          # Reason: Main dubbing pipeline handles all LLM optimization with efficient batching.
+          # Removing duplicate LLM processing to prevent API quota exhaustion.
+          echo "=== Normalized SRT Ready ==="
+          echo "Skipping AI refinement (handled by main dubbing pipeline)"
+          echo "Final SRT: $1.ocr.srt"
       else
           echo "Warning: $1.ocr.srt not found, skipping AI refinement step."
       fi

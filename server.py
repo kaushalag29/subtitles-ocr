@@ -122,18 +122,18 @@ async def process_request(request: OCRRequest):
             execute_command_in_dir(f'{python_executable} gensrt.py "{os.path.join(temp_dir_abs, results_json_filename)}" "{os.path.join(temp_dir_abs, ocr_srt_filename)}" "{os.path.join(temp_dir_abs, upper_results_json_filename)}"', ".")
 
             execute_command_in_dir(f'srt-normalise -i "{os.path.join(temp_dir_abs, ocr_srt_filename)}" --inplace --debug', ".")
-            
-            refined_srt_filename = f"{video_filename}.ocr.refined.srt"
-            execute_command_in_dir(f'{python_executable} refine_srt.py "{os.path.join(temp_dir_abs, ocr_srt_filename)}" "{os.path.join(temp_dir_abs, refined_srt_filename)}"', ".")
-            
+
+            # OPTIMIZATION: Skip OCR refinement step (refine_srt.py)
+            # Reason: Main dubbing pipeline (srt_to_speech.py) handles all LLM optimization
+            # through preprocess_subtitles_with_ai with efficient batching (50 subs per API call).
+            # Doing refinement here would duplicate LLM processing and exceed API quotas.
+            # Pass normalized OCR output directly to main pipeline.
+
             final_srt_filename = f"{video_filename}.ocr.final.srt"
             final_srt_path_in_temp = os.path.join(temp_dir_abs, final_srt_filename)
-            
-            refined_srt_path_in_temp = os.path.join(temp_dir_abs, refined_srt_filename)
-            if os.path.exists(refined_srt_path_in_temp):
-                shutil.move(refined_srt_path_in_temp, final_srt_path_in_temp)
-            else:
-                shutil.move(os.path.join(temp_dir_abs, ocr_srt_filename), final_srt_path_in_temp)
+
+            # Use normalized OCR output directly (skip refine_srt.py)
+            shutil.move(os.path.join(temp_dir_abs, ocr_srt_filename), final_srt_path_in_temp)
 
             final_output_dir = os.path.abspath("output")
             os.makedirs(final_output_dir, exist_ok=True)

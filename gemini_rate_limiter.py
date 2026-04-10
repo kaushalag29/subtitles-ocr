@@ -43,9 +43,9 @@ class GeminiRateLimiter:
     # Rate limits for different models (Free Tier - RPM)
     MODEL_RATE_LIMITS = {
         'gemini-2.5-pro': 5,
-        'gemini-2.5-flash': 10,
+        'gemini-2.5-flash': 5,
         'gemini-2.5-flash-preview': 10,
-        'gemini-2.5-flash-lite': 15,
+        'gemini-2.5-flash-lite': 10,
         'gemini-2.5-flash-lite-preview': 15,
         'gemini-2.5-flash-lite-preview-06-17': 15,
         'gemini-2.0-flash': 15,

@@ -41,7 +41,11 @@ def merge_files(args):
         sub1_nearest_slot: srt.Subtitle = nearest(subs1.values(), start_sub2)
 
         # only allow a MAX deviation between two slots in order to merge, otherwise add new slot
-        diff_seconds = int(abs(sub1_nearest_slot.start.total_seconds() - sub2.start.total_seconds()))
+        # Convert SubRipTime to seconds (pysrt.SubRipTime has no .total_seconds() method)
+        def subrip_to_seconds(subrip_time):
+            return subrip_time.hours * 3600 + subrip_time.minutes * 60 + subrip_time.seconds + subrip_time.milliseconds / 1000.0
+
+        diff_seconds = int(abs(subrip_to_seconds(sub1_nearest_slot.start) - subrip_to_seconds(sub2.start)))
 
         if sub1_nearest_slot.content.strip() == sub2.content.strip() or sub2.content.strip() in sub1_nearest_slot.content:
             print(f'''B already in A: SKIP merging!
